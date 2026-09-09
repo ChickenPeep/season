@@ -34,7 +34,7 @@ let canvasInFlight = null;
 let lastCanvasError = null;
 
 async function getCanvas({ refresh = false } = {}) {
-  const creds = canvasCredentials(cfg);
+  const creds = canvasCredentials(cfg, ROOT);
   if (MOCK || !creds.configured) {
     return { ...mockCanvas(), configured: creds.configured, mock: true, error: null };
   }
@@ -285,7 +285,7 @@ const server = http.createServer(async (req, res) => {
   const refresh = url.searchParams.get('refresh') === '1';
   try {
     if (url.pathname === '/api/config' && req.method === 'GET') {
-      const creds = canvasCredentials(cfg);
+      const creds = canvasCredentials(cfg, ROOT);
       return json(res, 200, {
         semester: cfg.semester,
         pins: cfg.pins,
@@ -334,7 +334,7 @@ server.on('error', (err) => {
   process.exit(1);
 });
 server.listen(PORT, HOST, () => {
-  const creds = canvasCredentials(cfg);
+  const creds = canvasCredentials(cfg, ROOT);
   const addr = `http://localhost:${PORT}`;
   console.log(`Season is on the board at ${addr}`);
   console.log(MOCK ? '  Canvas: mock data (CANVAS_MOCK=1)' : creds.configured ? `  Canvas: ${creds.url}` : `  Canvas: not configured yet, showing sample data. Add your token to ${cfg.canvas.envFile}`);

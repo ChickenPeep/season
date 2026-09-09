@@ -366,16 +366,6 @@ function renderQuick() {
   }));
 }
 
-function renderWeek() {
-  const sem = S.config?.semester;
-  if (!sem) return;
-  const start = new Date(sem.start + 'T00:00');
-  const end = new Date(sem.end + 'T00:00');
-  const now = new Date();
-  const totalWeeks = Math.max(1, Math.ceil((end - start) / (7 * 86400000)));
-  const week = Math.floor((now - start) / (7 * 86400000)) + 1;
-  $('#side-week').textContent = week >= 1 && week <= totalWeeks ? `Wk ${week}/${totalWeeks}` : sem.name;
-}
 
 /* ------------------------------------------------------------------ */
 /* Wiring                                                              */
@@ -657,7 +647,6 @@ async function boot() {
   try { if (localStorage.getItem('season:sidebar') === 'hidden') { S.sidebarHidden = true; $('#app').classList.add('side-hidden'); } } catch {}
   const [config, state] = await Promise.all([api('/api/config'), api('/api/state')]);
   S.config = config;
-  renderWeek();
   const wanted = config.shell?.version || 0;
   if (state.shell?.folders?.length && (state.shell.version || 0) === wanted) {
     S.shell = { folders: state.shell.folders.map((f) => ({ ...f, tabs: f.tabs || [] })), today: state.shell.today || [], activeId: state.shell.activeId, version: wanted };

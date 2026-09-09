@@ -263,15 +263,18 @@ function wireAgenda(root) {
     renderAgenda();
   }));
   root.querySelectorAll('.add-form').forEach((form) => {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
+    const add = () => {
       const title = form.title.value.trim();
       if (!title) return;
       S.local.tasks.push({ id: crypto.randomUUID(), title, date: form.closest('.day').dataset.date, done: false, createdAt: new Date().toISOString() });
       saveLocal();
       renderAgenda();
+    };
+    form.addEventListener('submit', (e) => { e.preventDefault(); add(); });
+    form.querySelector('input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); add(); }
+      else if (e.key === 'Escape') { S.openAdd = null; renderAgenda(); }
     });
-    form.querySelector('input').addEventListener('keydown', (e) => { if (e.key === 'Escape') { S.openAdd = null; renderAgenda(); } });
     form.querySelector('input').addEventListener('blur', () => { if (!form.title.value.trim() && S.openAdd) { S.openAdd = null; renderAgenda(); } });
   });
   root.querySelectorAll('.task').forEach((el) => {

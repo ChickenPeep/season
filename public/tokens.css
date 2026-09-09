@@ -1,53 +1,52 @@
-/* Season design tokens: whiteboard by day, chalkboard by night. Shared by the board and the shell. */
-
+/* Season tokens: neutral, system, quiet. One accent. Follows the OS theme; the app can force one. */
 :root {
-  --board: #f8f9f7;
-  --grid: rgba(20, 22, 26, 0.055);
-  --card: #ffffff;
-  --line: #dcdfe3;
-  --line-strong: #b9bec6;
-  --ink: #14161a;
-  --ink-2: #5b6068;
-  --ink-3: #8a9099;
-  --blue: #1f4fd8;
-  --blue-soft: rgba(31, 79, 216, 0.1);
-  --red: #d9362b;
-  --red-soft: rgba(217, 54, 43, 0.1);
-  --green: #1e9e5a;
-  --green-soft: rgba(30, 158, 90, 0.12);
-  --amber: #e09a1b;
-  --amber-soft: rgba(224, 154, 27, 0.14);
-  --shadow: 0 1px 2px rgba(20, 22, 26, 0.06), 0 8px 24px -16px rgba(20, 22, 26, 0.25);
-  --c1: #1f4fd8; --c2: #0f8b8d; --c3: #7b3fe4; --c4: #e0731b; --c5: #1e9e5a; --c6: #8b5e34;
-  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
-  --body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
-  --mono: "IBM Plex Mono", "SF Mono", Menlo, monospace;
-  --radius: 10px;
+  --bg: #f7f7f8;
+  --surface: #ffffff;
+  --surface-2: #f0f0f2;
+  --line: #e6e6ea;
+  --line-2: #d3d3d9;
+  --text: #1a1a1f;
+  --text-2: #66676f;
+  --text-3: #9a9ba3;
+  --accent: #2f6bff;
+  --accent-soft: rgba(47, 107, 255, 0.1);
+  --red: #d64545;
+  --red-soft: rgba(214, 69, 69, 0.1);
+  --green: #2e9e5b;
+  --green-soft: rgba(46, 158, 91, 0.12);
+  --amber: #c98f16;
+  --amber-soft: rgba(201, 143, 22, 0.14);
+  --c1: #2f6bff; --c2: #0f9d8a; --c3: #7c5cff; --c4: #e07a2f; --c5: #2e9e5b; --c6: #b0678a;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 8px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  /* aliases kept for older markup */
+  --board: var(--bg); --card: var(--surface); --ink: var(--text); --ink-2: var(--text-2); --ink-3: var(--text-3);
+  --blue: var(--accent); --blue-soft: var(--accent-soft); --line-strong: var(--line-2); --grid: transparent;
   color-scheme: light;
 }
-
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --board: #1b2420; --grid: rgba(255, 255, 255, 0.045); --card: #222d28; --line: #33403a; --line-strong: #4a5a52;
-    --ink: #f1efe6; --ink-2: #a8ada5; --ink-3: #7d837c;
-    --blue: #7fb3ff; --blue-soft: rgba(127, 179, 255, 0.14);
-    --red: #ff7a6b; --red-soft: rgba(255, 122, 107, 0.14);
-    --green: #6fd69a; --green-soft: rgba(111, 214, 154, 0.14);
-    --amber: #f2c35b; --amber-soft: rgba(242, 195, 91, 0.16);
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -18px rgba(0, 0, 0, 0.7);
-    --c1: #7fb3ff; --c2: #5fd3d5; --c3: #b899ff; --c4: #ffa45c; --c5: #6fd69a; --c6: #d8a879;
+    --bg: #131417; --surface: #1a1b1f; --surface-2: #22232a; --line: #272830; --line-2: #34353f;
+    --text: #ececef; --text-2: #9b9ca6; --text-3: #6b6c77;
+    --accent: #6f9bff; --accent-soft: rgba(111, 155, 255, 0.14);
+    --red: #ff6b6b; --red-soft: rgba(255, 107, 107, 0.14);
+    --green: #5ccb88; --green-soft: rgba(92, 203, 136, 0.14);
+    --amber: #e5b04a; --amber-soft: rgba(229, 176, 74, 0.16);
+    --c1: #6f9bff; --c2: #4fd0bd; --c3: #a996ff; --c4: #ff9c5a; --c5: #5ccb88; --c6: #d58ab0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --board: #1b2420; --grid: rgba(255, 255, 255, 0.045); --card: #222d28; --line: #33403a; --line-strong: #4a5a52;
-  --ink: #f1efe6; --ink-2: #a8ada5; --ink-3: #7d837c;
-  --blue: #7fb3ff; --blue-soft: rgba(127, 179, 255, 0.14);
-  --red: #ff7a6b; --red-soft: rgba(255, 122, 107, 0.14);
-  --green: #6fd69a; --green-soft: rgba(111, 214, 154, 0.14);
-  --amber: #f2c35b; --amber-soft: rgba(242, 195, 91, 0.16);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -18px rgba(0, 0, 0, 0.7);
-  --c1: #7fb3ff; --c2: #5fd3d5; --c3: #b899ff; --c4: #ffa45c; --c5: #6fd69a; --c6: #d8a879;
+  --bg: #131417; --surface: #1a1b1f; --surface-2: #22232a; --line: #272830; --line-2: #34353f;
+  --text: #ececef; --text-2: #9b9ca6; --text-3: #6b6c77;
+  --accent: #6f9bff; --accent-soft: rgba(111, 155, 255, 0.14);
+  --red: #ff6b6b; --red-soft: rgba(255, 107, 107, 0.14);
+  --green: #5ccb88; --green-soft: rgba(92, 203, 136, 0.14);
+  --amber: #e5b04a; --amber-soft: rgba(229, 176, 74, 0.16);
+  --c1: #6f9bff; --c2: #4fd0bd; --c3: #a996ff; --c4: #ff9c5a; --c5: #5ccb88; --c6: #d58ab0;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
-

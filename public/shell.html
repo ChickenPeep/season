@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Season</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/tokens.css">
   <link rel="stylesheet" href="/shell.css">
   <script>
@@ -18,21 +15,17 @@
   <div class="app" id="app">
     <aside class="sidebar" id="sidebar" aria-label="Spaces and tabs">
       <div class="drag-strip"></div>
-      <div class="side-head">
-        <span class="wordmark">Season</span>
-        <span class="side-week" id="side-week"></span>
-      </div>
       <nav class="spaces" id="spaces"></nav>
       <div class="today-wrap" id="today-wrap">
         <div class="today-head">
           <span>Today</span>
-          <button type="button" class="ghost" id="clear-today" title="Close all of today's tabs">clear</button>
+          <button type="button" class="ghost" id="clear-today" title="Close all of today's tabs">Clear</button>
         </div>
         <div class="today-tabs" id="today-tabs"></div>
       </div>
       <div class="side-foot">
         <button type="button" class="ghost" id="new-tab-btn" title="New tab (⌘T)">+ New tab</button>
-        <button type="button" class="ghost icon" id="theme-btn" title="Whiteboard / chalkboard (⌘⇧D)" aria-label="Switch theme">◐</button>
+        <button type="button" class="ghost" id="theme-btn" title="Light / dark (⌘⇧D)" aria-label="Switch theme">◐</button>
       </div>
       <div class="marker" id="marker" aria-hidden="true"></div>
     </aside>
@@ -53,7 +46,7 @@
       <div class="views" id="views">
         <div class="newtab" id="newtab" hidden>
           <div class="newtab-inner">
-            <h1>Where to?</h1>
+            <h1>New tab</h1>
             <p>Type an address above, or pick a place.</p>
             <div class="quick" id="quick"></div>
           </div>
@@ -69,7 +62,7 @@
   </div>
 
   <div class="palette" id="palette" hidden>
-    <div class="palette-box" role="dialog" aria-modal="true" aria-label="Jump anywhere">
+    <div class="palette-box" role="dialog" aria-modal="true" aria-label="Jump">
       <input id="palette-input" type="text" placeholder="Jump to a tab, course, deadline, project, or address…" aria-label="Search" autocomplete="off" spellcheck="false">
       <ul id="palette-list" role="listbox"></ul>
       <div class="palette-hint"><kbd>↑↓</kbd> move <kbd>↵</kbd> open <kbd>esc</kbd> close</div>

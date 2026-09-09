@@ -44,9 +44,10 @@ function persist() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     const shell = {
-      folders: S.shell.folders.map((f) => ({ id: f.id, name: f.name, icon: f.icon, open: !!f.open, courses: !!f.courses, tabs: f.tabs.map(stripTab) })),
+      folders: S.shell.folders.map((f) => ({ id: f.id, name: f.name, fixed: !!f.fixed, open: !!f.open, courses: !!f.courses, tabs: f.tabs.map(stripTab) })),
       today: S.shell.today.map(stripTab),
       activeId: S.shell.activeId,
+      version: S.shell.version || 0,
     };
     api('/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ shell }) }).catch((e) => toast(`Could not save tabs: ${e.message}`));
   }, 300);
@@ -92,10 +93,11 @@ function activeTab() {
   return findTab(S.shell.activeId);
 }
 
-function seedShell() {
+function seedShell({ keepToday = [] } = {}) {
   const seed = S.config?.shell?.folders || [];
-  S.shell.folders = seed.map((f) => ({ id: f.id || uid(), name: f.name, icon: f.icon || '▪', open: f.open !== false, courses: !!f.courses, tabs: (f.tabs || []).map((t) => ({ id: uid(), title: t.title, url: t.url, favicon: null })) }));
-  S.shell.today = [];
+  S.shell.folders = seed.map((f) => ({ id: f.id || uid(), name: f.name || '', fixed: !!f.fixed, open: f.open !== false, courses: !!f.courses, tabs: (f.tabs || []).map((t) => ({ id: uid(), title: t.title, url: t.url, favicon: null })) }));
+  S.shell.today = keepToday;
+  S.shell.version = S.config?.shell?.version || 0;
   S.shell.activeId = S.shell.folders[0]?.tabs[0]?.id || null;
 }
 
@@ -239,7 +241,7 @@ function moveTab(id, targetFolderId) {
   const rt = S.runtime.get(id);
   if (targetFolderId) {
     const f = S.shell.folders.find((x) => x.id === targetFolderId);
-    if (!f) return;
+    if (!f || f.fixed) return;
     // Pinning freezes the current page as the tab's home.
     if (rt?.url) tab.url = rt.url;
     if (rt?.title) tab.title = rt.title;
@@ -273,7 +275,7 @@ function tabHtml(tab, { inFolder }) {
   const rt = S.runtime.get(tab.id);
   const active = tab.id === S.shell.activeId;
   const title = inFolder ? tab.title : rt?.title || tab.title;
-  const sub = inFolder && !tab.auto ? hostOf(tab.url) : ''; // course tabs keep their full name in the tooltip, not inline
+  const sub = ''; // rows stay to one line; the tooltip carries the address
   const cls = ['tab', active ? 'active' : '', rt?.loading ? 'loading' : '', inFolder && !rt?.view ? 'sleeping' : '', tab.fresh ? 'enter' : ''].join(' ');
   delete tab.fresh;
   const tip = tab.sub ? `${tab.sub} · ${rt?.url || tab.url}` : rt?.url || tab.url || 'New tab';
@@ -290,9 +292,9 @@ function renderSidebar() {
   spaces.innerHTML = S.shell.folders
     .map((f) => {
       const tabs = folderTabs(f);
+      if (f.fixed) return `<div class="fixed-tabs" data-id="${esc(f.id)}">${tabs.map((t) => tabHtml(t, { inFolder: true })).join('')}</div>`;
       return `<section class="folder ${f.open ? 'open' : ''}" data-id="${esc(f.id)}">
         <button type="button" class="folder-head" aria-expanded="${f.open}">
-          <span class="folder-icon">${esc(f.icon)}</span>
           <span class="folder-name">${esc(f.name)}</span>
           <span class="folder-count">${tabs.length}</span>
           <span class="folder-add" role="button" title="New tab in ${esc(f.name)}" aria-label="New tab in ${esc(f.name)}">+</span>
@@ -344,7 +346,7 @@ function syncToolbar() {
 function moveMarker() {
   const el = document.querySelector(`.tab.active`);
   const marker = $('#marker');
-  if (!el) return marker.classList.remove('on');
+  if (!marker || !el) return;
   const side = $('#sidebar').getBoundingClientRect();
   const r = el.getBoundingClientRect();
   marker.style.top = `${r.top - side.top + (r.height - 20) / 2}px`;
@@ -416,7 +418,7 @@ function showContext(x, y, id) {
   const rt = S.runtime.get(id);
   const menu = $('#ctx');
   const url = rt?.url || tab.url;
-  const folders = S.shell.folders.filter((f) => f.id !== home?.id);
+  const folders = S.shell.folders.filter((f) => f.id !== home?.id && !f.fixed);
   menu.innerHTML = [
     `<button data-act="reload">Reload</button>`,
     `<button data-act="external">Open in default browser</button>`,
@@ -656,10 +658,11 @@ async function boot() {
   const [config, state] = await Promise.all([api('/api/config'), api('/api/state')]);
   S.config = config;
   renderWeek();
-  if (state.shell?.folders?.length) {
-    S.shell = { folders: state.shell.folders.map((f) => ({ ...f, tabs: f.tabs || [] })), today: state.shell.today || [], activeId: state.shell.activeId };
+  const wanted = config.shell?.version || 0;
+  if (state.shell?.folders?.length && (state.shell.version || 0) === wanted) {
+    S.shell = { folders: state.shell.folders.map((f) => ({ ...f, tabs: f.tabs || [] })), today: state.shell.today || [], activeId: state.shell.activeId, version: wanted };
     for (const t of allTabs()) if (t.lastUrl && !homeOf(t.id)) S.runtime.set(t.id, { view: null, url: t.lastUrl, title: t.title, favicon: t.favicon, loading: false });
-  } else seedShell();
+  } else seedShell({ keepToday: state.shell?.today || [] });
   renderSidebar();
   const first = findTab(S.shell.activeId) || allTabs()[0];
   if (first) activate(first.id); else openTab(BOARD_URL, { title: 'Season' });

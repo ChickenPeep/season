@@ -1,10 +1,11 @@
 # Season
 
-One board for the semester. Canvas deadlines plotted across every week of the term, a
-week-by-week game plan, your git projects with their branch state and open PRs, the files
-you touched recently, pinned links, a focus timer, and a ⌘K jump-to-anything palette.
+A quiet home for the semester and a small browser built around it. The home page is one
+agenda: Canvas deadlines and your own tasks for the week, what's coming up, your courses,
+your git projects, and the files you touched recently. The app wraps that in a sidebar of
+spaces (School, Nexum, Business) whose tabs are real web pages with persistent logins.
 
-Runs locally. No accounts, no cloud, no build step, zero npm dependencies. Node 20+.
+Runs locally. No accounts, no cloud, no build step, zero runtime dependencies. Node 20+.
 
 ## Run it
 
@@ -21,10 +22,10 @@ opening anything. `npm run mock` forces sample Canvas data.
 
 ## The app
 
-Season the app is a small browser built around the board. The left sidebar holds **spaces**
-(Board, School, Nexum, AI, Tools by default; edit them in `config.json` under `shell`). Each
-space unfolds into tabs that are real web pages with their own persistent logins. The School
-space adds one tab per current Canvas course on its own.
+The left sidebar starts with two fixed rows, Home and Claude, then **spaces** (School, Work,
+Business by default; edit them in `config.json` under `shell`). Each space unfolds into tabs
+that are real web pages with their own persistent logins. The School space adds one tab per
+current Canvas course on its own. Bump `shell.version` in the config to reseed the sidebar.
 
 - Tabs in a space are pinned: closing one puts it to sleep, right-click to remove it.
 - Links you open land under **Today**. Drag one onto a space to pin it there.
@@ -59,21 +60,19 @@ cross-origin writes.
 | `semester.breaks` | Optional `[{ "label": "Thanksgiving", "start": "2026-11-23", "end": "2026-11-27" }]` shaded on the strip |
 | `projects.roots` | Folders scanned for git repositories |
 | `files.roots` / `recentDays` / `ignore` | What shows up under Recent files |
-| `pins` | Links that always show under Pinned |
+| `shell` | The sidebar: fixed rows, spaces, search engine, `version` |
 
-## Keys
+## Keys on the home page
 
 | Key | Action |
 |---|---|
-| `⌘K` or `/` | Jump to any course, deadline, project, file, pin, or action |
+| `⌘K` or `/` | Jump to any course, deadline, project, or file |
 | `r` | Refresh Canvas and projects |
-| `[` `]` | Previous / next week in the game plan |
-| `f` | Start or stop a 25-minute focus block |
-| `t` | Whiteboard / chalkboard |
+| `[` `]` | Previous / next week |
 
 ## Where things live
 
-- `data/state.json`: your tasks, pins, focus history, and locally checked-off deadlines
+- `data/state.json`: your tasks, locally checked-off deadlines, and the sidebar layout
 - `data/canvas-cache.json`: the last Canvas pull, so the board paints instantly offline
 
 ## Check

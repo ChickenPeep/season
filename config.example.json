@@ -55,36 +55,17 @@
     }
   ],
   "shell": {
+    "version": 2,
     "search": "https://www.google.com/search?q=",
     "folders": [
       {
-        "id": "board",
-        "name": "Board",
-        "icon": "▦",
+        "id": "fixed",
+        "fixed": true,
         "tabs": [
           {
-            "title": "Season",
+            "title": "Home",
             "url": "http://localhost:4747/"
-          }
-        ]
-      },
-      {
-        "id": "school",
-        "name": "School",
-        "icon": "◫",
-        "courses": true,
-        "tabs": [
-          {
-            "title": "Canvas",
-            "url": "https://canvas.instructure.com"
-          }
-        ]
-      },
-      {
-        "id": "ai",
-        "name": "AI",
-        "icon": "✦",
-        "tabs": [
+          },
           {
             "title": "Claude",
             "url": "https://claude.ai"
@@ -92,17 +73,41 @@
         ]
       },
       {
-        "id": "tools",
-        "name": "Tools",
-        "icon": "⚙",
+        "id": "school",
+        "name": "School",
+        "courses": true,
+        "tabs": [
+          {
+            "title": "Canvas",
+            "url": "https://canvas.instructure.com"
+          },
+          {
+            "title": "Calendar",
+            "url": "https://canvas.instructure.com/calendar"
+          }
+        ]
+      },
+      {
+        "id": "work",
+        "name": "Work",
         "tabs": [
           {
             "title": "GitHub",
             "url": "https://github.com"
-          },
+          }
+        ]
+      },
+      {
+        "id": "business",
+        "name": "Business",
+        "tabs": [
           {
             "title": "Gmail",
             "url": "https://mail.google.com"
+          },
+          {
+            "title": "Google Calendar",
+            "url": "https://calendar.google.com"
           }
         ]
       }

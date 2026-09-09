@@ -70,6 +70,10 @@ function homeRel(p) {
 function courseById(id) {
   return S.canvas?.courses.find((c) => c.id === id);
 }
+/** "INFO SYS 316-001C" → "INFO SYS 316"; "MHR 351-001C & 002C" → "MHR 351". Section suffixes are noise on a chip. */
+function shortCode(code) {
+  return String(code || '').replace(/\s*[-–]\s*\d{2,3}[A-Z]?(\s*&\s*\d{2,3}[A-Z]?)?\s*$/, '').trim();
+}
 function colorFor(courseId) {
   return S.courseColor.get(courseId) || 'var(--ink-3)';
 }
@@ -283,7 +287,7 @@ function renderStrip() {
     list.sort((a, b) => (isLate(a) ? -1 : 1) - (isLate(b) ? -1 : 1));
     list.slice(0, 5).forEach((it, i) => {
       const cls = it.type === 'calendar_event' ? 'event' : isDone(it) ? 'done' : isLate(it, now) ? 'late' : 'due';
-      out += `<circle class="pip ${cls}" data-id="${esc(it.id)}" cx="${px}" cy="${baseY - 6 - i * 9}" r="3.6"><title>${esc(it.title)} · ${esc(courseById(it.courseId)?.code || it.contextName || '')} · ${esc(fmtMonthDay.format(fromKey(k)))}</title></circle>`;
+      out += `<circle class="pip ${cls}" data-id="${esc(it.id)}" cx="${px}" cy="${baseY - 6 - i * 9}" r="3.6"><title>${esc(it.title)} · ${esc(shortCode(courseById(it.courseId)?.code) || it.contextName || '')} · ${esc(fmtMonthDay.format(fromKey(k)))}</title></circle>`;
     });
     if (list.length > 5) out += `<text class="week-num" x="${px + 6}" y="${baseY - 6 - 4 * 9 + 3}">+${list.length - 5}</text>`;
   }
@@ -340,7 +344,7 @@ function renderWeek() {
             const c = courseById(it.courseId);
             const cls = ['chip', isDone(it) ? 'done' : '', isLate(it, now) ? 'late' : ''].join(' ');
             const when = it.type === 'calendar_event' ? fmtTime.format(new Date(it.dueAt)) : `due ${fmtTime.format(new Date(it.dueAt))}`;
-            return `<a class="${cls}" style="--cc:${colorFor(it.courseId)}" href="${esc(it.url || '#')}" target="_blank" rel="noopener" title="${esc(it.title)}">${esc(it.title)}<span class="chip-meta"><span>${esc(c?.code || it.contextName || '')}</span><span>${esc(when)}${it.points != null ? ` · ${it.points}pt` : ''}</span></span></a>`;
+            return `<a class="${cls}" style="--cc:${colorFor(it.courseId)}" href="${esc(it.url || '#')}" target="_blank" rel="noopener" title="${esc(it.title)}">${esc(it.title)}<span class="chip-meta"><span>${esc(shortCode(c?.code) || it.contextName || '')}</span><span>${esc(when)}${it.points != null ? ` · ${it.points}pt` : ''}</span></span></a>`;
           })
           .join('')}
         ${tasks
@@ -458,7 +462,7 @@ function renderDeck() {
       html += `<div class="deck-row ${done ? 'done' : ''} ${isLate(it, now) ? 'late' : ''}">
         <div class="when">${esc(fmtDayShort.format(d))} ${esc(fmtMonthDay.format(d).replace(/^\w+ /, ''))}<small>${esc(fmtTime.format(d))}</small></div>
         <div class="what"><a href="${esc(it.url || '#')}" target="_blank" rel="noopener">${esc(it.title)}</a>
-          <div class="sub"><span class="tag" style="--cc:${colorFor(it.courseId)}">${esc(c?.code || it.contextName || '')}</span>${status}</div></div>
+          <div class="sub"><span class="tag" style="--cc:${colorFor(it.courseId)}">${esc(shortCode(c?.code) || it.contextName || '')}</span>${status}</div></div>
         <div style="display:flex;align-items:center;gap:8px"><span class="pts">${it.points != null ? `${it.points}pt` : ''}</span><input type="checkbox" data-id="${esc(it.id)}" ${done ? 'checked' : ''} ${it.complete ? 'disabled' : ''} aria-label="Mark done: ${esc(it.title)}"></div>
       </div>`;
     }
@@ -508,7 +512,7 @@ function renderCourses() {
       const anns = (S.canvas.announcements || []).filter((a) => a.courseId === c.id && Date.now() - new Date(a.postedAt) < 7 * DAY).length;
       const grade = c.score != null ? `<b>${Math.round(c.score * 10) / 10}</b><span>${esc(c.grade || '')}</span>` : `<b>—</b><span>no grade yet</span>`;
       return `<a class="course" style="--cc:${colorFor(c.id)}" href="${esc(c.url || '#')}" target="_blank" rel="noopener">
-        <span class="code">${esc(c.code)}${anns ? ` · ${anns} new` : ''}${!c.current && c.term ? ` · ${esc(c.term)}` : ''}</span>
+        <span class="code">${esc(shortCode(c.code))}${anns ? ` · ${anns} new` : ''}${!c.current && c.term ? ` · ${esc(c.term)}` : ''}</span>
         <span class="name">${esc(c.name)}</span>
         <span class="grade">${grade}</span>
         <span class="next">${late ? `<em style="color:var(--red)">${late} overdue</em> · ` : ''}${next ? `<em>${esc(fmtDayShort.format(new Date(next.dueAt)))}</em> ${esc(next.title)}` : 'nothing due'}</span>
@@ -578,7 +582,7 @@ function renderAnnouncements() {
     .map((a) => {
       const c = courseById(a.courseId);
       return `<div class="ann">
-        <div class="ann-top"><span class="tag" style="--cc:${colorFor(a.courseId)}">${esc(c?.code || '')}</span><span class="ann-when">${esc(relTime(a.postedAt))}</span></div>
+        <div class="ann-top"><span class="tag" style="--cc:${colorFor(a.courseId)}">${esc(shortCode(c?.code))}</span><span class="ann-when">${esc(relTime(a.postedAt))}</span></div>
         <a class="ann-title" href="${esc(a.url || '#')}" target="_blank" rel="noopener">${esc(a.title)}</a>
         <div class="ann-body">${esc(a.excerpt)}</div>
       </div>`;
@@ -756,10 +760,10 @@ function paletteItems() {
   out.push({ k: 'action', t: 'Go to this week', s: '', run: () => { S.weekStart = mondayOf(new Date()); renderWeek(); renderStrip(); } });
   out.push({ k: 'action', t: focus.mode === 'idle' ? 'Start a focus block' : 'Stop the focus block', s: '25 min', run: () => $('#focus-toggle').click() });
   if (S.config?.canvas?.host) out.push({ k: 'link', t: 'Open Canvas', s: S.config.canvas.host, run: () => window.open(`https://${S.config.canvas.host}`, '_blank', 'noopener') });
-  for (const c of S.canvas?.courses || []) out.push({ k: 'course', t: `${c.code} ${c.name}`, s: c.grade || '', run: () => c.url && window.open(c.url, '_blank', 'noopener') });
+  for (const c of S.canvas?.courses || []) out.push({ k: 'course', t: `${shortCode(c.code)} ${c.name}`, s: c.grade || '', run: () => c.url && window.open(c.url, '_blank', 'noopener') });
   for (const it of S.canvas?.items || []) {
     if (isDone(it) && new Date(it.dueAt) < now) continue;
-    out.push({ k: 'due', t: it.title, s: `${courseById(it.courseId)?.code || ''} · ${fmtMonthDay.format(new Date(it.dueAt))}`, run: () => it.url && window.open(it.url, '_blank', 'noopener') });
+    out.push({ k: 'due', t: it.title, s: `${shortCode(courseById(it.courseId)?.code)} · ${fmtMonthDay.format(new Date(it.dueAt))}`, run: () => it.url && window.open(it.url, '_blank', 'noopener') });
   }
   for (const p of S.projects || []) {
     for (const [k, label] of Object.entries(S.config?.apps || {})) out.push({ k: 'project', t: `${p.name} → ${label}`, s: p.branch, run: () => openPath(p.path, k) });

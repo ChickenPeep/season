@@ -16,6 +16,7 @@ const S = {
   showAllCourses: false,
   showAllFiles: false,
   openAdd: null, // date key whose add-task field is open
+  sync: null,
 };
 
 /* ------------------------------------------------------------------ */
@@ -105,11 +106,69 @@ async function openPath(path, app = 'default') {
 /* Loading                                                             */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Sync                                                                */
+/* ------------------------------------------------------------------ */
+
+function renderSync() {
+  const btn = $('#sync');
+  const st = S.sync;
+  if (!st?.configured) { btn.hidden = true; return; }
+  btn.hidden = false;
+  const dot = $('#sync-dot');
+  const label = $('#sync-label');
+  if (st.running) {
+    dot.className = 'sync-dot working';
+    label.textContent = 'Syncing';
+    btn.title = 'Syncing with your other computer';
+  } else if (st.lastError) {
+    dot.className = 'sync-dot error';
+    label.textContent = 'Sync failed';
+    btn.title = `${st.lastError.message}${st.lastError.hint ? ' — ' + st.lastError.hint : ''}`;
+  } else {
+    dot.className = 'sync-dot';
+    label.textContent = st.lastAt ? `Synced ${relTime(st.lastAt)}` : 'Sync';
+    const others = Object.entries(st.devices || {}).filter(([id]) => id !== st.device?.id).map(([, d]) => d.name);
+    btn.title = others.length ? `Also syncing: ${others.join(', ')}` : 'Sync with your other computer';
+  }
+}
+
+async function pollSync() {
+  try {
+    S.sync = await api('/api/sync');
+    renderSync();
+  } catch {}
+}
+
+/** The button. Sync, then reload whatever it brought back. */
+async function syncNow() {
+  const st = S.sync;
+  if (!st?.configured || st.running) return;
+  S.sync = { ...st, running: true };
+  renderSync();
+  try {
+    S.sync = await api('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (S.sync.lastError) toast(S.sync.lastError.hint || S.sync.lastError.message);
+    const st2 = await api('/api/state');
+    S.local = { tasks: st2.tasks || [], doneItems: st2.doneItems || [] };
+    renderAgenda();
+    renderLater();
+    renderCourses();
+  } catch (e) {
+    toast(`Sync failed: ${e.message}`);
+  }
+  renderSync();
+}
+
+/* ------------------------------------------------------------------ */
+/* Loading                                                             */
+/* ------------------------------------------------------------------ */
+
 async function loadAll({ refresh = false } = {}) {
   const q = refresh ? '?refresh=1' : '';
   $('#updated').textContent = 'updating…';
   const jobs = [
-    api('/api/config').then((c) => { S.config = c; renderHeader(); }),
+    api('/api/config').then((c) => { S.config = c; S.sync = c.sync; renderHeader(); renderSync(); }),
     api('/api/state').then((st) => { S.local = { tasks: st.tasks || [], doneItems: st.doneItems || [] }; renderAgenda(); }),
     api('/api/canvas' + q).then((cv) => {
       S.canvas = cv;
@@ -449,6 +508,7 @@ function paletteItems() {
   const out = [];
   const now = new Date();
   out.push({ k: 'action', t: 'Refresh', s: 'R', run: () => loadAll({ refresh: true }) });
+  if (S.sync?.configured) out.push({ k: 'action', t: 'Sync with your other computer', s: 'S', run: syncNow });
   out.push({ k: 'action', t: 'This week', s: '', run: () => { S.weekStart = mondayOf(new Date()); renderAgenda(); } });
   if (S.config?.canvas?.host) out.push({ k: 'link', t: 'Canvas', s: S.config.canvas.host, run: () => window.open(`https://${S.config.canvas.host}`, '_blank', 'noopener') });
   for (const c of S.canvas?.courses || []) out.push({ k: 'course', t: `${shortCode(c.code)} ${c.name}`, s: c.grade || '', run: () => c.url && window.open(c.url, '_blank', 'noopener') });
@@ -523,6 +583,7 @@ $('#open-palette').addEventListener('click', openPalette);
 /* ------------------------------------------------------------------ */
 
 $('#refresh').addEventListener('click', () => loadAll({ refresh: true }));
+$('#sync').addEventListener('click', syncNow);
 $('#week-prev').addEventListener('click', () => { S.weekStart = addDays(S.weekStart, -7); S.openAdd = null; renderAgenda(); });
 $('#week-next').addEventListener('click', () => { S.weekStart = addDays(S.weekStart, 7); S.openAdd = null; renderAgenda(); });
 $('#week-today').addEventListener('click', () => { S.weekStart = mondayOf(new Date()); S.openAdd = null; renderAgenda(); });
@@ -532,13 +593,20 @@ document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); palette.open ? closePalette() : openPalette(); return; }
   if (palette.open || typing || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'r') loadAll({ refresh: true });
+  else if (e.key === 's') syncNow();
   else if (e.key === '[') $('#week-prev').click();
   else if (e.key === ']') $('#week-next').click();
   else if (e.key === '/') { e.preventDefault(); openPalette(); }
 });
 
-setInterval(() => { renderUpdated(); renderHeader(); }, 60000);
+setInterval(() => { renderUpdated(); renderHeader(); renderSync(); }, 60000);
+setInterval(pollSync, 20000);
 setInterval(() => loadAll(), 10 * 60000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && S.lastLoad && Date.now() - S.lastLoad > 5 * 60000) loadAll(); });
+// Coming back to the window is exactly when the other machine's edits should appear.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (S.sync?.configured) syncNow();
+  if (S.lastLoad && Date.now() - S.lastLoad > 5 * 60000) loadAll();
+});
 
 loadAll();

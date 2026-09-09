@@ -50,6 +50,57 @@ only set the token once:
 The token never leaves your machine. Season binds to `127.0.0.1` only and refuses
 cross-origin writes.
 
+## Two computers
+
+Season syncs your tasks, checked-off deadlines, spaces and semester dates between
+machines through a **private GitHub repository**. Nothing is published; the repo is
+private and holds one small JSON file.
+
+Set it up once per machine:
+
+```bash
+npm run sync:setup
+```
+
+The first machine creates the repo. The second finds it and joins. Both need the
+[GitHub CLI](https://cli.github.com) signed in with `gh auth login` — Season borrows
+that sign-in rather than asking for a token of its own.
+
+After that it looks after itself. Season syncs when it starts, a couple of seconds
+after you change something, every five minutes, and whenever you come back to the
+window. The **Sync** button on Home (and in the app's sidebar) forces it and shows
+when it last ran; press `s` on Home for the same thing.
+
+**Editing on both machines at once is safe.** Records merge one at a time rather than
+whole files, so a task you add on the laptop and a deadline you tick off on the desktop
+both survive. If the same task is edited in two places the newer edit wins. Deleting a
+task deletes it everywhere. If both machines happen to save at the same instant, GitHub
+rejects the second write and Season merges again instead of overwriting.
+
+What does **not** travel: which tab is open, where a tab last navigated, your loose
+"Today" tabs, and any file path in `config.json`. Those are per-machine on purpose,
+because `~/Developer` and `C:\Users\you\Developer` are not the same place.
+
+### Windows
+
+Season runs on Windows the same way. Install [Node](https://nodejs.org) and the
+[GitHub CLI](https://cli.github.com), then:
+
+```bash
+git clone https://github.com/ChickenPeep/season.git
+cd season
+npm install
+gh auth login
+npm run sync:setup
+npm run app
+```
+
+Put your Canvas token in a `.env` next to the repo or set `CANVAS_API_TOKEN` and
+`CANVAS_API_URL` as environment variables — the token itself is never synced.
+Then edit `config.json` so `projects.roots` and `files.roots` point at your Windows
+folders. Those stay local, so changing them will not affect the Mac.
+
+
 ## Tune it
 
 `config.json` is yours and stays out of git; it is created from `config.example.json` on first run.
@@ -61,6 +112,8 @@ cross-origin writes.
 | `projects.roots` | Folders scanned for git repositories |
 | `files.roots` / `recentDays` / `ignore` | What shows up under Recent files |
 | `shell` | The sidebar: fixed rows, spaces, search engine, `version` |
+| `sync.repo` | The private GitHub repo used to sync; `npm run sync:setup` fills it in |
+| `sync.auto` | Set false to sync only when you press the button |
 
 ## Keys on the home page
 
@@ -68,11 +121,13 @@ cross-origin writes.
 |---|---|
 | `⌘K` or `/` | Jump to any course, deadline, project, or file |
 | `r` | Refresh Canvas and projects |
+| `s` | Sync with your other computer |
 | `[` `]` | Previous / next week |
 
 ## Where things live
 
-- `data/state.json`: your tasks, locally checked-off deadlines, and the sidebar layout
+- `data/state.json`: your tasks, checked-off deadlines, and the sidebar layout
+- `data/device.json`: this machine's name and id, used to label it in sync
 - `data/canvas-cache.json`: the last Canvas pull, so the board paints instantly offline
 
 ## Check

@@ -25,7 +25,10 @@
       </div>
       <div class="side-foot">
         <button type="button" class="ghost" id="new-tab-btn" title="New tab (⌘T)">+ New tab</button>
-        <button type="button" class="ghost" id="theme-btn" title="Light / dark (⌘⇧D)" aria-label="Switch theme">◐</button>
+        <span class="foot-right">
+          <button type="button" class="ghost sync-btn" id="sync-btn" hidden aria-label="Sync"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Sync</span></button>
+          <button type="button" class="ghost" id="theme-btn" title="Light / dark (⌘⇧D)" aria-label="Switch theme">◐</button>
+        </span>
       </div>
       <div class="marker" id="marker" aria-hidden="true"></div>
     </aside>

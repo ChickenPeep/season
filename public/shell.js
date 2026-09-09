@@ -9,6 +9,7 @@ const S = {
   config: null,
   canvas: null,
   shell: { folders: [], today: [], activeId: null },
+  sync: null,
   runtime: new Map(), // tabId -> { view, url, title, favicon, loading, canBack, canFwd }
   closed: [],
   sidebarHidden: false,
@@ -481,6 +482,7 @@ $('#clear-today').addEventListener('click', () => {
   if (ids.includes(S.shell.activeId)) { const n = allTabs()[0]; if (n) activate(n.id); else openTab(''); } else { renderSidebar(); persist(); }
 });
 $('#theme-btn').addEventListener('click', toggleTheme);
+$('#sync-btn').addEventListener('click', syncNow);
 $('#spaces').addEventListener('scroll', moveMarker, { passive: true });
 addEventListener('resize', moveMarker);
 
@@ -502,6 +504,60 @@ function toggleTheme() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Sync                                                                */
+/* ------------------------------------------------------------------ */
+
+function renderSync() {
+  const btn = $('#sync-btn');
+  const st = S.sync;
+  if (!st?.configured) { btn.hidden = true; return; }
+  btn.hidden = false;
+  const dot = $('#sync-dot');
+  const label = $('#sync-label');
+  if (st.running) { dot.className = 'sync-dot working'; label.textContent = 'Syncing'; btn.title = 'Syncing'; }
+  else if (st.lastError) { dot.className = 'sync-dot error'; label.textContent = 'Failed'; btn.title = `${st.lastError.message}${st.lastError.hint ? ' — ' + st.lastError.hint : ''}`; }
+  else {
+    dot.className = 'sync-dot';
+    label.textContent = 'Synced';
+    const others = Object.entries(st.devices || {}).filter(([id]) => id !== st.device?.id).map(([, d]) => d.name);
+    btn.title = st.lastAt ? `Last synced ${new Date(st.lastAt).toLocaleTimeString()}${others.length ? ` · also on ${others.join(', ')}` : ''}` : 'Sync';
+  }
+}
+
+/**
+ * Sync, then take on whatever came back. The sidebar is rebuilt from the merged
+ * spaces, but the tab you are looking at stays where it is.
+ */
+async function syncNow() {
+  if (!S.sync?.configured || S.sync.running) return;
+  S.sync = { ...S.sync, running: true };
+  renderSync();
+  try {
+    S.sync = await api('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (S.sync.lastError) toast(S.sync.lastError.hint || S.sync.lastError.message);
+    else await adoptRemoteSpaces();
+  } catch (e) {
+    toast(`Sync failed: ${e.message}`);
+  }
+  renderSync();
+}
+
+async function adoptRemoteSpaces() {
+  const state = await api('/api/state');
+  const folders = state.shell?.folders;
+  if (!folders?.length) return;
+  const before = JSON.stringify(S.shell.folders.map((f) => ({ n: f.name, t: (f.tabs || []).map((x) => x.url) })));
+  const after = JSON.stringify(folders.map((f) => ({ n: f.name, t: (f.tabs || []).map((x) => x.url) })));
+  if (before === after) return;
+  const openTab = activeTab();
+  S.shell.folders = folders.map((f) => ({ ...f, open: S.shell.folders.find((x) => x.id === f.id)?.open ?? f.open, tabs: f.tabs || [] }));
+  renderSidebar();
+  // If the tab that was open no longer exists, fall back to the board.
+  if (openTab && !findTab(openTab.id)) goHome(); else renderSidebar();
+  toast('Spaces updated from your other computer.');
+}
+
+/* ------------------------------------------------------------------ */
 /* Palette                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -516,6 +572,7 @@ function paletteItems() {
   out.push({ k: 'action', t: 'Toggle sidebar', s: '⌘\\', run: toggleSidebar });
   out.push({ k: 'action', t: 'Whiteboard / chalkboard', s: '⌘⇧D', run: toggleTheme });
   out.push({ k: 'action', t: 'Refresh Canvas data', s: '', run: () => api('/api/canvas?refresh=1').then(loadCanvas).then(() => toast('Canvas refreshed.')) });
+  if (S.sync?.configured) out.push({ k: 'action', t: 'Sync with your other computer', s: '', run: syncNow });
   const now = new Date();
   for (const it of S.canvas?.items || []) {
     if (it.complete && new Date(it.dueAt) < now) continue;
@@ -647,6 +704,10 @@ async function boot() {
   try { if (localStorage.getItem('season:sidebar') === 'hidden') { S.sidebarHidden = true; $('#app').classList.add('side-hidden'); } } catch {}
   const [config, state] = await Promise.all([api('/api/config'), api('/api/state')]);
   S.config = config;
+  S.sync = config.sync;
+  renderSync();
+  setInterval(async () => { try { S.sync = await api('/api/sync'); renderSync(); } catch {} }, 20000);
+  addEventListener('focus', () => { if (S.sync?.configured && !S.sync.running) syncNow(); });
   const wanted = config.shell?.version || 0;
   if (state.shell?.folders?.length && (state.shell.version || 0) === wanted) {
     S.shell = { folders: state.shell.folders.map((f) => ({ ...f, tabs: f.tabs || [] })), today: state.shell.today || [], activeId: state.shell.activeId, version: wanted };

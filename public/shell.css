@@ -60,6 +60,12 @@ code { font-family: var(--mono); font-size: 12px; }
 .ghost { border: 0; background: none; color: var(--text-3); padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .ghost:hover { color: var(--text); background: var(--surface-2); }
 .side-foot { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 10px; }
+.foot-right { display: flex; align-items: center; gap: 2px; }
+.sync-btn { display: inline-flex; align-items: center; gap: 6px; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex: none; }
+.sync-dot.working { background: var(--accent); animation: sync-pulse 900ms ease-in-out infinite; }
+.sync-dot.error { background: var(--red); }
+@keyframes sync-pulse { 50% { opacity: 0.3; } }
 
 /* stage */
 .stage { display: flex; flex-direction: column; min-width: 0; background: var(--surface); }

@@ -11,8 +11,9 @@
     "start": "node server.mjs",
     "open": "node server.mjs --open",
     "mock": "CANVAS_MOCK=1 node server.mjs",
-    "check": "node --check server.mjs && node --check lib/canvas.mjs && node --check lib/projects.mjs && node --check lib/files.mjs && node --check lib/store.mjs && node --test test/*.test.mjs && node --check public/shell.js && node --check desktop/main.mjs",
-    "app": "electron desktop/main.mjs"
+    "check": "node --check server.mjs && node --check lib/canvas.mjs && node --check lib/projects.mjs && node --check lib/files.mjs && node --check lib/store.mjs && node --check lib/sync.mjs && node --check scripts/sync-setup.mjs && node --test test/*.test.mjs && node --check public/app.js && node --check public/shell.js && node --check desktop/main.mjs",
+    "app": "electron desktop/main.mjs",
+    "sync:setup": "node scripts/sync-setup.mjs"
   },
   "devDependencies": {
     "electron": "^44.2.0"

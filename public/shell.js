@@ -468,6 +468,7 @@ $('#omni-form').addEventListener('submit', (e) => {
   if (!tab.url) {
     tab.url = target;
     tab.title = hostOf(target) || target;
+    S.runtime.delete(tab.id); // the blank tab's runtime record predates the address; start fresh
     activate(tab.id);
     return;
   }

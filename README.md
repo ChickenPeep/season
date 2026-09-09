@@ -8,12 +8,29 @@ Runs locally. No accounts, no cloud, no build step, zero npm dependencies. Node 
 
 ## Run it
 
+Two ways in, same data:
+
 ```bash
 cd ~/Developer/season
-npm run open          # starts the server and opens http://localhost:4747
+npm run app           # the Season app: sidebar of spaces with real browser tabs, board as home
+npm run open          # just the board, in your normal browser at http://localhost:4747
 ```
 
-`npm start` starts without opening a browser. `npm run mock` forces sample Canvas data.
+`npm install` once first (it pulls Electron for the app). `npm start` runs the server without
+opening anything. `npm run mock` forces sample Canvas data.
+
+## The app
+
+Season the app is a small browser built around the board. The left sidebar holds **spaces**
+(Board, School, Nexum, AI, Tools by default; edit them in `config.json` under `shell`). Each
+space unfolds into tabs that are real web pages with their own persistent logins. The School
+space adds one tab per current Canvas course on its own.
+
+- Tabs in a space are pinned: closing one puts it to sleep, right-click to remove it.
+- Links you open land under **Today**. Drag one onto a space to pin it there.
+- `⌘T` new tab, `⌘W` close, `⌘L` address bar, `⌘K` jump anywhere, `⌘\` hide the sidebar,
+  `⌘⇧H` back to the board, `⌘1…9` switch tabs, `⌘⇧O` open the page in your default browser.
+- Everything stays on your machine. No sync, no accounts.
 
 ## Connect Canvas (one-time)
 

@@ -13,12 +13,17 @@
     "start": "node server.mjs",
     "open": "node server.mjs --open",
     "mock": "CANVAS_MOCK=1 node server.mjs",
-    "check": "node --check server.mjs && node --check lib/canvas.mjs && node --check lib/projects.mjs && node --check lib/files.mjs && node --check lib/store.mjs && node --check lib/sync.mjs && node --check scripts/sync-setup.mjs && node --check scripts/install-app.mjs && node --test test/*.test.mjs && node --check public/app.js && node --check public/shell.js && node --check desktop/main.mjs",
+    "check": "node --check server.mjs && node --check lib/canvas.mjs && node --check lib/projects.mjs && node --check lib/files.mjs && node --check lib/store.mjs && node --check lib/sync.mjs && node --check scripts/sync-setup.mjs && node --check scripts/install-app.mjs && node --test --test-force-exit --test-timeout=20000 test/*.test.mjs && node --check public/app.js && node --check public/shell.js && node --check desktop/main.mjs",
     "app": "electron desktop/main.mjs",
     "sync:setup": "node scripts/sync-setup.mjs",
     "install-app": "node scripts/install-app.mjs"
   },
   "devDependencies": {
     "electron": "^44.2.0"
+  },
+  "dependencies": {
+    "@lydell/node-pty": "^1.2.0-beta.15",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0"
   }
 }

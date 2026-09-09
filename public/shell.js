@@ -10,6 +10,8 @@ const S = {
   canvas: null,
   shell: { folders: [], today: [], activeId: null },
   sync: null,
+  terminals: [],        // live shell sessions; they cannot outlive the app, so they are never persisted
+  termByPty: new Map(), // pty id -> runtime record, for routing output
   runtime: new Map(), // tabId -> { view, url, title, favicon, loading, canBack, canFwd }
   closed: [],
   sidebarHidden: false,
@@ -81,7 +83,7 @@ function folderTabs(f) {
   return f.courses ? [...f.tabs, ...courseTabs()] : f.tabs;
 }
 function allTabs() {
-  return [...S.shell.folders.flatMap(folderTabs), ...S.shell.today];
+  return [...S.shell.folders.flatMap(folderTabs), ...S.terminals, ...S.shell.today];
 }
 function findTab(id) {
   return allTabs().find((t) => t.id === id) || null;
@@ -103,6 +105,165 @@ function seedShell({ keepToday = [] } = {}) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Terminals                                                           */
+/* ------------------------------------------------------------------ */
+
+let xtermLib = null;
+async function loadXterm() {
+  if (!xtermLib) {
+    const [core, fit] = await Promise.all([import('/vendor/xterm.mjs'), import('/vendor/addon-fit.mjs')]);
+    xtermLib = { Terminal: core.Terminal, FitAddon: fit.FitAddon };
+  }
+  return xtermLib;
+}
+
+/** Colours come from the same tokens as the rest of the app, so themes match. */
+function termTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => (cs.getPropertyValue(name) || fallback).trim();
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches
+    ? document.documentElement.dataset.theme !== 'light'
+    : document.documentElement.dataset.theme === 'dark';
+  return {
+    background: v('--surface', '#ffffff'),
+    foreground: v('--text', '#1a1a1f'),
+    cursor: v('--accent', '#2f6bff'),
+    cursorAccent: v('--surface', '#ffffff'),
+    selectionBackground: dark ? 'rgba(111,155,255,0.30)' : 'rgba(47,107,255,0.22)',
+    black: dark ? '#3b3d46' : '#2b2d34',
+    red: v('--red', '#d64545'),
+    green: v('--green', '#2e9e5b'),
+    yellow: v('--amber', '#c98f16'),
+    blue: v('--accent', '#2f6bff'),
+    magenta: dark ? '#a996ff' : '#7c5cff',
+    cyan: dark ? '#4fd0bd' : '#0f9d8a',
+    white: dark ? '#d7d8dd' : '#5c5e66',
+    brightBlack: v('--text-3', '#9a9ba3'),
+    brightRed: dark ? '#ff8f8f' : '#e05c5c',
+    brightGreen: dark ? '#7bdca0' : '#38b46b',
+    brightYellow: dark ? '#f0c76a' : '#d9a12a',
+    brightBlue: dark ? '#8fb2ff' : '#4d82ff',
+    brightMagenta: dark ? '#c0b0ff' : '#9375ff',
+    brightCyan: dark ? '#72dfd0' : '#17b3a0',
+    brightWhite: v('--text', '#1a1a1f'),
+  };
+}
+
+function applyTermThemes() {
+  const theme = termTheme();
+  for (const rt of S.termByPty.values()) if (rt.term) rt.term.options.theme = theme;
+}
+
+function termLabel(tab) {
+  const cwd = (tab.cwd || '').replace(/\/+$/, '');
+  if (!cwd) return tab.shellName || 'Terminal';
+  if (cwd === (S.config?.home || '').replace(/\/+$/, '')) return '~';
+  return cwd.split('/').pop() || '/';
+}
+
+/** Open a shell. `cwd` decides where it starts; it can go anywhere afterwards. */
+async function openTerminal({ cwd = null, activate: act = true } = {}) {
+  if (!isApp) return toast('Terminals need the Season app. Run: npm run app');
+  try {
+    const avail = await window.season.term.available();
+    if (!avail.ok) return toast(avail.reason);
+    const info = await window.season.term.create({ cwd, cols: 80, rows: 24 });
+    const tab = { id: `term:${info.id}`, ptyId: info.id, term: true, cwd: info.cwd, shellName: info.shell, url: '' };
+    tab.title = termLabel(tab);
+    tab.fresh = true;
+    S.terminals.push(tab);
+    renderSidebar();
+    if (act) activate(tab.id);
+    return tab;
+  } catch (err) {
+    toast(`Could not open a terminal: ${err.message}`);
+  }
+}
+
+function closeTerminal(id) {
+  const tab = S.terminals.find((t) => t.id === id);
+  if (!tab) return;
+  window.season.term.kill(tab.ptyId);
+  S.termByPty.delete(tab.ptyId);
+  dropView(id);
+  S.runtime.delete(id);
+  S.terminals = S.terminals.filter((t) => t.id !== id);
+  if (S.shell.activeId === id) {
+    const n = allTabs()[0];
+    if (n) activate(n.id); else goHome();
+  } else renderSidebar();
+}
+
+/** Build the xterm view for a session and connect it to its pty. */
+function mountTerminal(tab, rt) {
+  const host = document.createElement('div');
+  host.className = 'termview';
+  host.dataset.tab = tab.id;
+  $('#views').appendChild(host);
+  rt.view = host;
+  rt.ptyId = tab.ptyId;
+  rt.pending = '';
+  S.termByPty.set(tab.ptyId, rt);
+
+  loadXterm().then(({ Terminal, FitAddon }) => {
+    if (!rt.view) return; // closed while the library loaded
+    const term = new Terminal({
+      theme: termTheme(),
+      fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+      fontSize: 12.5,
+      lineHeight: 1.25,
+      cursorBlink: true,
+      scrollback: 20000,
+      macOptionIsMeta: true,
+      allowProposedApi: true,
+    });
+    const fit = new FitAddon();
+    term.loadAddon(fit);
+    term.open(host);
+    rt.term = term;
+    rt.fit = fit;
+
+    term.onData((d) => window.season.term.write(tab.ptyId, d));
+    term.onResize(({ cols, rows }) => window.season.term.resize(tab.ptyId, cols, rows));
+    term.onTitleChange((title) => {
+      // Most shells put the working directory in the window title; use it if it is there.
+      const m = String(title).match(/(~?\/[^\s]*)\s*$/);
+      if (m) tab.cwd = m[1];
+      const next = termLabel(tab);
+      if (next !== tab.title) { tab.title = next; renderSidebar(); }
+    });
+
+    fitTerminal(rt);
+    if (rt.pending) { term.write(rt.pending); rt.pending = ''; }
+    if (S.shell.activeId === tab.id) term.focus();
+  });
+  return rt;
+}
+
+function fitTerminal(rt) {
+  if (!rt?.fit || !rt.view || rt.view.clientWidth === 0) return;
+  try {
+    rt.fit.fit();
+    window.season.term.resize(rt.ptyId, rt.term.cols, rt.term.rows);
+  } catch {}
+}
+
+if (isApp) {
+  window.season.term.onData(({ id, data }) => {
+    const rt = S.termByPty.get(id);
+    if (!rt) return;
+    if (rt.term) rt.term.write(data);
+    else rt.pending += data;
+  });
+  window.season.term.onExit(({ id, exitCode }) => {
+    const rt = S.termByPty.get(id);
+    const tab = S.terminals.find((t) => t.ptyId === id);
+    if (rt?.term) rt.term.write(`\r\n\x1b[2m[exited${exitCode ? ` with ${exitCode}` : ''}]\x1b[0m\r\n`);
+    if (tab) { tab.exited = true; renderSidebar(); }
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Views (webview in the app, iframe preview in a browser)             */
 /* ------------------------------------------------------------------ */
 
@@ -113,6 +274,7 @@ function ensureView(tab) {
     rt = { view: null, url: tab.lastUrl || tab.url, title: tab.title, favicon: tab.favicon || null, loading: false, canBack: false, canFwd: false };
     S.runtime.set(tab.id, rt);
   }
+  if (tab.term) return mountTerminal(tab, rt);
   if (!tab.url) return rt; // a blank new tab: nothing to load yet
   const startUrl = tab.auto || homeOf(tab) ? tab.url : rt.url || tab.url;
   const external = !startUrl.startsWith(location.origin);
@@ -175,11 +337,12 @@ function activate(id, { focusOmni = false } = {}) {
   if (!tab) return;
   S.shell.activeId = id;
   const rt = ensureView(tab);
-  for (const el of $('#views').querySelectorAll('webview, iframe')) el.classList.toggle('active', el.dataset.tab === id);
+  for (const el of $('#views').querySelectorAll('webview, iframe, .termview')) el.classList.toggle('active', el.dataset.tab === id);
   const external = tab.url && !tab.url.startsWith(location.origin);
-  $('#newtab').hidden = !!tab.url;
+  $('#newtab').hidden = !!tab.url || !!tab.term;
   $('#notapp').hidden = !(!isApp && external);
-  if (!tab.url) renderQuick();
+  if (!tab.url && !tab.term) renderQuick();
+  if (tab.term) requestAnimationFrame(() => { fitTerminal(rt); rt.term?.focus(); });
   renderSidebar();
   syncToolbar();
   document.title = (rt.title || tab.title || 'Season') + ' · Season';
@@ -209,6 +372,7 @@ function neighborOf(id) {
 function closeTab(id) {
   const tab = findTab(id);
   if (!tab) return;
+  if (tab.term) return closeTerminal(id);
   const home = homeOf(id);
   const rt = S.runtime.get(id);
   const wasActive = S.shell.activeId === id;
@@ -268,6 +432,7 @@ function reopenClosed() {
 /* ------------------------------------------------------------------ */
 
 function favHtml(tab) {
+  if (tab.term) return `<span class="fav term-fav">&gt;_</span>`;
   const rt = S.runtime.get(tab.id);
   const fav = rt?.favicon || tab.favicon;
   if (tab.auto) return `<span class="fav mono" style="--cc:${tab.color}">${esc(tab.title.split(' ').pop())}</span>`;
@@ -281,20 +446,34 @@ function tabHtml(tab, { inFolder }) {
   const active = tab.id === S.shell.activeId;
   const title = inFolder ? tab.title : rt?.title || tab.title;
   const sub = ''; // rows stay to one line; the tooltip carries the address
-  const cls = ['tab', active ? 'active' : '', rt?.loading ? 'loading' : '', inFolder && !rt?.view ? 'sleeping' : '', tab.fresh ? 'enter' : ''].join(' ');
+  const cls = ['tab', active ? 'active' : '', rt?.loading ? 'loading' : '', inFolder && !tab.term && !rt?.view ? 'sleeping' : '', tab.exited ? 'exited' : '', tab.fresh ? 'enter' : ''].join(' ');
   delete tab.fresh;
   const tip = tab.sub ? `${tab.sub} · ${rt?.url || tab.url}` : rt?.url || tab.url || 'New tab';
   return `<div class="${cls}" data-id="${esc(tab.id)}" draggable="${tab.auto ? 'false' : 'true'}" title="${esc(tip)}" role="button" tabindex="0">
     ${favHtml(tab)}
     <span class="title">${esc(title)}</span>
     ${sub && !active ? '' : sub ? `<span class="sub">${esc(sub.length > 22 ? sub.slice(0, 20) + '…' : sub)}</span>` : ''}
-    <button type="button" class="x" aria-label="${inFolder ? 'Sleep tab' : 'Close tab'}" title="${inFolder ? 'Sleep (⌘W)' : 'Close (⌘W)'}">×</button>
+    <button type="button" class="x" aria-label="${tab.term ? 'Close terminal' : inFolder ? 'Sleep tab' : 'Close tab'}" title="${tab.term ? 'Close terminal (⌘W)' : inFolder ? 'Sleep (⌘W)' : 'Close (⌘W)'}">×</button>
   </div>`;
 }
 
 function renderSidebar() {
   const spaces = $('#spaces');
-  spaces.innerHTML = S.shell.folders
+  const termRows = S.terminals.length
+    ? S.terminals.map((t) => tabHtml(t, { inFolder: true })).join('')
+    : `<div class="tab term-new" role="button" tabindex="0"><span class="fav">&gt;_</span><span class="title">New terminal</span></div>`;
+  const termSection = `<section class="folder terms ${S.termsOpen === false ? '' : 'open'}" data-terms="1">
+      <button type="button" class="folder-head" aria-expanded="${S.termsOpen !== false}">
+        <span class="folder-name">Terminal</span>
+        <span class="folder-count">${S.terminals.length || ''}</span>
+        <span class="folder-add" role="button" title="New terminal (⌘⌥T)" aria-label="New terminal">+</span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <div class="folder-body"><div><div class="folder-tabs">${termRows}</div></div></div>
+    </section>`;
+
+  const fixedHtml = S.shell.folders.filter((f) => f.fixed).map((f) => `<div class="fixed-tabs" data-id="${esc(f.id)}">${folderTabs(f).map((t) => tabHtml(t, { inFolder: true })).join('')}</div>`).join('');
+  spaces.innerHTML = fixedHtml + termSection + S.shell.folders.filter((f) => !f.fixed)
     .map((f) => {
       const tabs = folderTabs(f);
       if (f.fixed) return `<div class="fixed-tabs" data-id="${esc(f.id)}">${tabs.map((t) => tabHtml(t, { inFolder: true })).join('')}</div>`;
@@ -338,6 +517,16 @@ function syncToolbar() {
   const tab = activeTab();
   const rt = tab ? S.runtime.get(tab.id) : null;
   const omni = $('#omni');
+  if (tab?.term) {
+    omni.value = `${tab.shellName || 'shell'} — ${tab.cwd || ''}`;
+    omni.readOnly = true;
+    $('#back').disabled = $('#fwd').disabled = $('#reload').disabled = $('#external').disabled = true;
+    $('#omni-loading').hidden = true;
+    $('#omni-lock').hidden = true;
+    return;
+  }
+  omni.readOnly = false;
+  $('#external').disabled = false;
   if (document.activeElement !== omni) omni.value = rt?.url || tab?.url || '';
   $('#back').disabled = !rt?.canBack;
   $('#fwd').disabled = !rt?.canFwd;
@@ -377,8 +566,21 @@ function renderQuick() {
 /* ------------------------------------------------------------------ */
 
 function wireSidebar() {
-  document.querySelectorAll('.folder').forEach((sec) => {
+  const terms = document.querySelector('.folder.terms');
+  if (terms) {
+    terms.querySelector('.folder-head').addEventListener('click', (e) => {
+      if (e.target.closest('.folder-add')) return openTerminal();
+      S.termsOpen = S.termsOpen === false;
+      terms.classList.toggle('open', S.termsOpen !== false);
+    });
+    terms.querySelectorAll('.term-new').forEach((el) => {
+      el.addEventListener('click', () => openTerminal());
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTerminal(); } });
+    });
+  }
+  document.querySelectorAll('.folder:not(.terms)').forEach((sec) => {
     const f = S.shell.folders.find((x) => x.id === sec.dataset.id);
+    if (!f) return;
     sec.querySelector('.folder-head').addEventListener('click', (e) => {
       if (e.target.closest('.folder-add')) { openTab('', { folderId: f.id }); return; }
       f.open = !f.open;
@@ -395,11 +597,11 @@ function wireSidebar() {
   today.addEventListener('dragover', (e) => e.preventDefault());
   today.addEventListener('drop', (e) => { e.preventDefault(); moveTab(e.dataTransfer.getData('text/plain'), null); });
 
-  document.querySelectorAll('.tab').forEach((el) => {
+  document.querySelectorAll('.tab[data-id]').forEach((el) => {
     const id = el.dataset.id;
     el.addEventListener('click', (e) => { if (e.target.closest('.x')) return; activate(id); });
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(id); } });
-    el.querySelector('.x').addEventListener('click', (e) => { e.stopPropagation(); closeTab(id); });
+    el.querySelector('.x')?.addEventListener('click', (e) => { e.stopPropagation(); closeTab(id); });
     el.addEventListener('auxclick', (e) => { if (e.button === 1) closeTab(id); });
     el.addEventListener('contextmenu', (e) => { e.preventDefault(); showContext(e.clientX, e.clientY, id); });
     el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', id); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
@@ -409,6 +611,19 @@ function wireSidebar() {
 
 function showContext(x, y, id) {
   const tab = findTab(id);
+  if (tab?.term) {
+    const menu = $('#ctx');
+    menu.innerHTML = `<button data-act="term-new">New terminal here</button><hr><button data-act="term-close" class="danger">Close terminal</button>`;
+    menu.hidden = false;
+    menu.style.left = `${Math.min(x, innerWidth - menu.offsetWidth - 8)}px`;
+    menu.style.top = `${Math.min(y, innerHeight - menu.offsetHeight - 8)}px`;
+    menu.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      menu.hidden = true;
+      if (b.dataset.act === 'term-new') openTerminal({ cwd: tab.cwd });
+      else closeTerminal(id);
+    }));
+    return;
+  }
   const home = homeOf(id);
   const rt = S.runtime.get(id);
   const menu = $('#ctx');
@@ -488,7 +703,11 @@ $('#clear-today').addEventListener('click', () => {
 $('#theme-btn').addEventListener('click', toggleTheme);
 $('#sync-btn').addEventListener('click', syncNow);
 $('#spaces').addEventListener('scroll', moveMarker, { passive: true });
-addEventListener('resize', moveMarker);
+addEventListener('resize', () => {
+  moveMarker();
+  const rt = S.runtime.get(S.shell.activeId);
+  if (rt?.fit) fitTerminal(rt);
+});
 
 function toggleSidebar() {
   S.sidebarHidden = !S.sidebarHidden;
@@ -504,7 +723,8 @@ function toggleTheme() {
   root.dataset.theme = next;
   try { localStorage.setItem('season:theme', next); } catch {}
   if (isApp) window.season.setTheme(next);
-  toast(next === 'dark' ? 'Chalkboard' : 'Whiteboard');
+  applyTermThemes();
+  toast(next === 'dark' ? 'Dark' : 'Light');
 }
 
 /* ------------------------------------------------------------------ */
@@ -553,11 +773,11 @@ async function adoptRemoteSpaces() {
   const before = JSON.stringify(S.shell.folders.map((f) => ({ n: f.name, t: (f.tabs || []).map((x) => x.url) })));
   const after = JSON.stringify(folders.map((f) => ({ n: f.name, t: (f.tabs || []).map((x) => x.url) })));
   if (before === after) return;
-  const openTab = activeTab();
+  const openNow = activeTab();
   S.shell.folders = folders.map((f) => ({ ...f, open: S.shell.folders.find((x) => x.id === f.id)?.open ?? f.open, tabs: f.tabs || [] }));
   renderSidebar();
   // If the tab that was open no longer exists, fall back to the board.
-  if (openTab && !findTab(openTab.id)) goHome(); else renderSidebar();
+  if (openNow && !findTab(openNow.id)) goHome(); else renderSidebar();
   toast('Spaces updated from your other computer.');
 }
 
@@ -572,6 +792,8 @@ function paletteItems() {
   for (const f of S.shell.folders) for (const t of folderTabs(f)) out.push({ k: f.name, t: t.title + (t.sub ? ` · ${t.sub}` : ''), s: hostOf(t.url), run: () => activate(t.id) });
   for (const t of S.shell.today) { const rt = S.runtime.get(t.id); out.push({ k: 'today', t: rt?.title || t.title, s: hostOf(rt?.url || t.url), run: () => activate(t.id) }); }
   out.push({ k: 'action', t: 'New tab', s: '⌘T', run: () => openTab('') });
+  out.push({ k: 'action', t: 'New terminal', s: '⌘⌥T', run: () => openTerminal() });
+  for (const t of S.terminals) out.push({ k: 'terminal', t: t.title, s: t.cwd || '', run: () => activate(t.id) });
   out.push({ k: 'action', t: 'Go to the board', s: '⌘⇧H', run: goHome });
   out.push({ k: 'action', t: 'Toggle sidebar', s: '⌘\\', run: toggleSidebar });
   out.push({ k: 'action', t: 'Whiteboard / chalkboard', s: '⌘⇧D', run: toggleTheme });
@@ -585,6 +807,7 @@ function paletteItems() {
   }
   for (const p of S.projects || []) {
     for (const [k, label] of Object.entries(S.config?.apps || {})) out.push({ k: 'project', t: `${p.name} → ${label}`, s: p.branch, run: () => api('/api/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: p.path, app: k }) }).catch((e) => toast(e.message)) });
+    out.push({ k: 'project', t: `${p.name} → Terminal here`, s: p.branch, run: () => openTerminal({ cwd: p.path }) });
     if (p.remote) out.push({ k: 'project', t: `${p.name} → GitHub`, s: p.slug, run: () => openTab(p.remote) });
   }
   return out;
@@ -659,6 +882,7 @@ function shortcut(id) {
   const i = tabs.findIndex((t) => t.id === S.shell.activeId);
   switch (id) {
     case 'new-tab': return openTab('', { next: true });
+    case 'new-terminal': return openTerminal();
     case 'close-tab': return palette.open ? closePalette() : closeTab(S.shell.activeId);
     case 'reopen-tab': return reopenClosed();
     case 'reload': return viewAction((v) => v.reload());
@@ -725,4 +949,7 @@ async function boot() {
   if (isApp) { const t = document.documentElement.dataset.theme; if (t) window.season.setTheme(t); }
 }
 
-boot();
+boot().catch((err) => {
+  console.error('[boot]', err);
+  toast(`Season did not start cleanly: ${err.message}`);
+});

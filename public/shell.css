@@ -86,6 +86,21 @@ code { font-family: var(--mono); font-size: 12px; }
 .views { position: relative; flex: 1; min-height: 0; background: var(--surface); }
 .views webview, .views iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; visibility: hidden; }
 .views webview.active, .views iframe.active { visibility: visible; }
+
+/* A terminal has to be laid out to measure itself, so it is moved aside rather
+   than hidden — an element with no size reports zero columns. */
+.termview { position: absolute; inset: 0; padding: 10px 4px 6px 12px; background: var(--surface); left: -200vw; }
+.termview.active { left: 0; }
+.termview .xterm { height: 100%; }
+.termview .xterm-viewport { background: transparent !important; scrollbar-width: thin; }
+.termview .xterm-viewport::-webkit-scrollbar { width: 9px; }
+.termview .xterm-viewport::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 5px; }
+
+.tab .fav.term-fav { font-family: var(--mono); font-size: 9px; letter-spacing: -0.5px; background: transparent; color: var(--text-3); border: 1px solid var(--line-2); }
+.tab.active .fav.term-fav { color: var(--accent); border-color: var(--accent); }
+.tab.exited .title { color: var(--text-3); text-decoration: line-through; }
+.tab.term-new { color: var(--text-3); cursor: pointer; }
+.tab.term-new:hover { color: var(--text); }
 .newtab, .notapp { position: absolute; inset: 0; display: grid; place-items: start center; overflow: auto; background: var(--surface); }
 .newtab-inner { width: min(680px, 92%); padding-top: 10vh; }
 .newtab h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }

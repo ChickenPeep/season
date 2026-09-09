@@ -43,6 +43,11 @@ current Canvas course on its own. Bump `shell.version` in the config to reseed t
 - `⌘T` new tab, `⌘W` close, `⌘L` address bar, `⌘K` jump anywhere, `⌘\` hide the sidebar,
   `⌘⇧H` back to the board, `⌘1…9` switch tabs, `⌘⇧O` open the page in your default browser.
 - A page that opens a new window (a Canvas external tool, a sign-in popup) becomes a tab.
+- **Terminal** sits at the top of the sidebar. It is a real shell, not a command box:
+  editors, pagers and anything that draws a full screen work, colours work, and it
+  resizes with the window. `⌘⌥T` opens another; each one is listed under Terminal.
+  Right-click a terminal for a new one in the same folder. The palette can start one
+  in any of your projects — search a project name and pick "Terminal here".
 - Everything stays on your machine unless you turn on sync below.
 
 ## Connect Canvas (one-time)
@@ -134,12 +139,17 @@ folders. Those stay local, so changing them will not affect the Mac.
 | `⌘K` or `/` | Jump to any course, deadline, project, or file |
 | `r` | Refresh Canvas and projects |
 | `s` | Sync with your other computer |
+
+In the app: `⌘⌥T` new terminal, `⌘T` new tab, `⌘W` close, `⌘L` address bar, `⌘K` jump,
+`⌘\` hide the sidebar, `⌘⇧H` Home.
 | `[` `]` | Previous / next week |
 
 ## Where things live
 
 - `data/state.json`: your tasks, checked-off deadlines, and the sidebar layout
 - `data/device.json`: this machine's name and id, used to label it in sync
+
+Terminals are not saved: a shell cannot outlive the app, so closing it ends the session.
 - `data/canvas-cache.json`: the last Canvas pull, so the board paints instantly offline
 
 ## Check

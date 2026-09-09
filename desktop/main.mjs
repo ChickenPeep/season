@@ -1,5 +1,6 @@
 /* Season desktop shell: a window that owns real browser tabs, with the board served by the local server. */
 import { app, BrowserWindow, Menu, session, shell, ipcMain, nativeTheme } from 'electron';
+import { Terminals } from './terminal.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,6 +12,7 @@ const PARTITION = 'persist:season';
 app.setName('Season');
 
 let win = null;
+const terminals = new Terminals((channel, payload) => send(channel, payload));
 
 async function serverUp() {
   try {
@@ -47,6 +49,7 @@ function buildMenu() {
       label: 'File',
       submenu: [
         key('New tab', 'CmdOrCtrl+T', { id: 'new-tab' }),
+        key('New terminal', 'CmdOrCtrl+Alt+T', { id: 'new-terminal' }),
         key('Close tab', 'CmdOrCtrl+W', { id: 'close-tab' }),
         key('Reopen closed tab', 'CmdOrCtrl+Shift+T', { id: 'reopen-tab' }),
         { type: 'separator' },
@@ -148,9 +151,24 @@ async function createWindow() {
       spellcheck: true,
     },
   });
-  win.on('closed', () => (win = null));
+  win.on('closed', () => {
+    terminals.killAll();
+    win = null;
+  });
   await win.loadURL(SHELL_URL);
 }
+
+/* Terminals. Only the app's own window may drive them. */
+const fromWindow = (e) => win && !win.isDestroyed() && e.sender === win.webContents;
+
+ipcMain.handle('term:create', (e, opts) => {
+  if (!fromWindow(e)) throw new Error('refused');
+  return terminals.create(opts || {});
+});
+ipcMain.handle('term:available', (e) => (fromWindow(e) ? { ok: terminals.available, reason: terminals.available ? '' : terminals.unavailableReason } : { ok: false, reason: 'refused' }));
+ipcMain.on('term:write', (e, id, data) => { if (fromWindow(e)) terminals.write(String(id), String(data)); });
+ipcMain.on('term:resize', (e, id, cols, rows) => { if (fromWindow(e)) terminals.resize(String(id), cols, rows); });
+ipcMain.on('term:kill', (e, id) => { if (fromWindow(e)) terminals.kill(String(id)); });
 
 ipcMain.handle('open-external', (_e, url) => {
   if (/^https?:/.test(String(url))) shell.openExternal(url);
@@ -168,6 +186,8 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+app.on('before-quit', () => terminals.killAll());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

@@ -20,7 +20,20 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 const NAME = pkg.productName || 'Season';
 const ID = pkg.bundleId || `com.${(process.env.USER || 'local').replace(/[^a-z0-9]/gi, '')}.${NAME.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-const APPS = path.join(os.homedir(), 'Applications');
+/**
+ * /Applications is where people look, and it is what Finder's sidebar and Launchpad
+ * show. ~/Applications is a different folder that Finder hides by default, so it is
+ * only the fallback for a Mac where /Applications is not writable.
+ */
+function applicationsDir() {
+  try {
+    fs.accessSync('/Applications', fs.constants.W_OK);
+    return '/Applications';
+  } catch {
+    return path.join(os.homedir(), 'Applications');
+  }
+}
+const APPS = applicationsDir();
 const DEST = path.join(APPS, `${NAME}.app`);
 const MARKER = path.join(ROOT, 'data', 'installed-app.txt');
 
@@ -114,5 +127,9 @@ try {
 fs.mkdirSync(path.dirname(MARKER), { recursive: true });
 fs.writeFileSync(MARKER, DEST);
 
+// Tell macOS the bundle exists so it shows up in Spotlight and Launchpad promptly.
+try { sh('/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', ['-f', DEST]); } catch {}
+
 console.log(`\n✓ ${DEST}`);
-console.log('  Open it from Applications or Spotlight, and drag it to the Dock to keep it there.');
+console.log(`  Find it in Finder → Applications, or search "${NAME}" in Spotlight (⌘Space).`);
+console.log('  Drag it to the Dock to keep it one click away.');

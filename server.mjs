@@ -265,6 +265,23 @@ function openPath(target, app = 'default') {
   });
 }
 
+/** Third-party assets served straight from node_modules, so there is no build step. */
+const VENDOR = {
+  '/vendor/xterm.mjs': '@xterm/xterm/lib/xterm.mjs',
+  '/vendor/xterm.css': '@xterm/xterm/css/xterm.css',
+  '/vendor/addon-fit.mjs': '@xterm/addon-fit/lib/addon-fit.mjs',
+};
+
+function serveVendor(res, pathname) {
+  const rel = VENDOR[pathname];
+  const file = path.join(ROOT, 'node_modules', rel);
+  fs.readFile(file, (err, buf) => {
+    if (err) return json(res, 404, { error: `${rel} is missing. Run: npm install` });
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+    res.end(buf);
+  });
+}
+
 function serveStatic(req, res, pathname) {
   const rel = pathname === '/' ? '/index.html' : pathname;
   const file = path.normalize(path.join(PUBLIC, rel));
@@ -320,6 +337,7 @@ const server = http.createServer(async (req, res) => {
       await openPath(String(body.path || ''), String(body.app || 'default'));
       return json(res, 200, { ok: true });
     }
+    if (VENDOR[url.pathname]) return serveVendor(res, url.pathname);
     if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'no such endpoint' });
     return serveStatic(req, res, url.pathname);
   } catch (err) {

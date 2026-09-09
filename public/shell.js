@@ -122,6 +122,10 @@ function ensureView(tab) {
   view.dataset.tab = tab.id;
   if (isApp) {
     view.setAttribute('partition', 'persist:season');
+    // Without this, window.open() inside a page returns null and nothing fires, so
+    // "open in a new window" buttons (Canvas external tools, sign-in popups) die
+    // silently. With it, the main process turns each one into a tab.
+    view.setAttribute('allowpopups', '');
     view.setAttribute('src', startUrl);
     view.addEventListener('did-start-loading', () => { rt.loading = true; syncTab(tab.id); });
     view.addEventListener('did-stop-loading', () => { rt.loading = false; rt.canBack = view.canGoBack(); rt.canFwd = view.canGoForward(); syncTab(tab.id); });

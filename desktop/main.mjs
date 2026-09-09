@@ -100,10 +100,24 @@ function hardenSessions() {
       prefs.sandbox = true;
       params.partition = PARTITION;
     });
-    // Any page that tries to open a new window becomes a new tab instead.
+    // A page asking for a new window gets a tab instead.
     contents.setWindowOpenHandler(({ url }) => {
-      if (/^https?:|^about:blank/.test(url)) send('open-tab', { url });
-      else if (/^mailto:|^tel:/.test(url)) shell.openExternal(url);
+      if (/^https?:/i.test(url)) {
+        send('open-tab', { url });
+        return { action: 'deny' };
+      }
+      if (/^(mailto|tel):/i.test(url)) {
+        shell.openExternal(url);
+        return { action: 'deny' };
+      }
+      // A blank popup is a placeholder the opener writes into afterwards. Denying it
+      // hands the caller null and the flow dies with no error, so let it be a window.
+      if (!url || url === 'about:blank') {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: { width: 980, height: 760, autoHideMenuBar: true, backgroundColor: '#ffffff' },
+        };
+      }
       return { action: 'deny' };
     });
     // Block navigation of the shell window itself away from the local board.

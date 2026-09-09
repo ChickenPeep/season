@@ -1,9 +1,11 @@
 {
   "name": "season",
+  "productName": "Season",
   "version": "1.0.0",
   "description": "Semester hub: Canvas deadlines, local projects, recent files and a week plan in one board.",
   "type": "module",
   "private": true,
+  "main": "desktop/main.mjs",
   "engines": {
     "node": ">=20"
   },
@@ -11,9 +13,10 @@
     "start": "node server.mjs",
     "open": "node server.mjs --open",
     "mock": "CANVAS_MOCK=1 node server.mjs",
-    "check": "node --check server.mjs && node --check lib/canvas.mjs && node --check lib/projects.mjs && node --check lib/files.mjs && node --check lib/store.mjs && node --check lib/sync.mjs && node --check scripts/sync-setup.mjs && node --test test/*.test.mjs && node --check public/app.js && node --check public/shell.js && node --check desktop/main.mjs",
+    "check": "node --check server.mjs && node --check lib/canvas.mjs && node --check lib/projects.mjs && node --check lib/files.mjs && node --check lib/store.mjs && node --check lib/sync.mjs && node --check scripts/sync-setup.mjs && node --check scripts/install-app.mjs && node --test test/*.test.mjs && node --check public/app.js && node --check public/shell.js && node --check desktop/main.mjs",
     "app": "electron desktop/main.mjs",
-    "sync:setup": "node scripts/sync-setup.mjs"
+    "sync:setup": "node scripts/sync-setup.mjs",
+    "install-app": "node scripts/install-app.mjs"
   },
   "devDependencies": {
     "electron": "^44.2.0"

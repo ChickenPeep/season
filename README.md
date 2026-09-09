@@ -13,9 +13,20 @@ Two ways in, same data:
 
 ```bash
 cd ~/Developer/season
-npm run app           # the Season app: sidebar of spaces with real browser tabs, board as home
-npm run open          # just the board, in your normal browser at http://localhost:4747
+npm run app           # the app: sidebar of spaces with real browser tabs, Home as the first tab
+npm run open          # just the home page, in your normal browser at http://localhost:4747
 ```
+
+On a Mac, build a proper application first so it appears in Spotlight and the Dock
+under its own name and icon rather than as "Electron":
+
+```bash
+npm run install-app
+```
+
+That puts `Season.app` in your Applications folder. It links back to this folder, so
+editing the code still changes the app. To rename it, change `productName` in
+`package.json` and run it again — the old one is removed for you.
 
 `npm install` once first (it pulls Electron for the app). `npm start` runs the server without
 opening anything. `npm run mock` forces sample Canvas data.
@@ -31,7 +42,8 @@ current Canvas course on its own. Bump `shell.version` in the config to reseed t
 - Links you open land under **Today**. Drag one onto a space to pin it there.
 - `⌘T` new tab, `⌘W` close, `⌘L` address bar, `⌘K` jump anywhere, `⌘\` hide the sidebar,
   `⌘⇧H` back to the board, `⌘1…9` switch tabs, `⌘⇧O` open the page in your default browser.
-- Everything stays on your machine. No sync, no accounts.
+- A page that opens a new window (a Canvas external tool, a sign-in popup) becomes a tab.
+- Everything stays on your machine unless you turn on sync below.
 
 ## Connect Canvas (one-time)
 

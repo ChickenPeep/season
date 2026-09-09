@@ -1,0 +1,57 @@
+{
+  "port": 4747,
+  "semester": {
+    "name": "Fall 2026",
+    "start": "2026-08-24",
+    "end": "2026-12-11",
+    "breaks": [
+      {
+        "label": "Thanksgiving",
+        "start": "2026-11-25",
+        "end": "2026-11-29"
+      }
+    ]
+  },
+  "canvas": {
+    "envFile": "~/tools/canvas-mcp/.env",
+    "cacheMinutes": 10,
+    "lookBackDays": 7,
+    "lookAheadDays": 28
+  },
+  "projects": {
+    "roots": [
+      "~/Developer",
+      "~/Developer/nexum-worktrees"
+    ],
+    "maxDepth": 2
+  },
+  "files": {
+    "roots": [
+      "~/Desktop",
+      "~/Documents",
+      "~/Downloads",
+      "~/Developer"
+    ],
+    "recentDays": 14,
+    "limit": 40,
+    "ignore": [
+      ".DS_Store",
+      "node_modules",
+      ".git",
+      "dist",
+      ".venv",
+      "*.dmg",
+      "*.xcarchive"
+    ]
+  },
+  "pins": [
+    {
+      "label": "Canvas",
+      "url": "https://canvas.instructure.com"
+    },
+    {
+      "label": "GitHub",
+      "url": "https://github.com"
+    }
+  ]
+}

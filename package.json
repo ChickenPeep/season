@@ -1,0 +1,14 @@
+{
+  "name": "season",
+  "version": "1.0.0",
+  "description": "Semester hub: Canvas deadlines, local projects, recent files and a week plan in one board.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.mjs",
+    "open": "node server.mjs --open",
+    "mock": "CANVAS_MOCK=1 node server.mjs",
+    "check": "node --check server.mjs && node --check lib/canvas.mjs && node --check lib/projects.mjs && node --check lib/files.mjs && node --check lib/store.mjs && node --test test/*.test.mjs"
+  }
+}

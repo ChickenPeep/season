@@ -85,9 +85,8 @@ function saveLocal() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     try {
-      const saved = await api('/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tasks: S.local.tasks, doneItems: S.local.doneItems }) });
-      S.local.tasks = saved.tasks;
-      S.local.doneItems = saved.doneItems;
+      // Local state stays the source of truth: a slow response from an earlier save must not resurrect an edit made since.
+      await api('/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tasks: S.local.tasks, doneItems: S.local.doneItems }) });
     } catch (e) {
       toast(`Could not save: ${e.message}`);
     }

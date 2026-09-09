@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Season</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/shell.css">
+  <script>
+    try { const t = localStorage.getItem('season:theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+  </script>
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Spaces and tabs">
+      <div class="drag-strip"></div>
+      <div class="side-head">
+        <span class="wordmark">Season</span>
+        <span class="side-week" id="side-week"></span>
+      </div>
+      <nav class="spaces" id="spaces"></nav>
+      <div class="today-wrap" id="today-wrap">
+        <div class="today-head">
+          <span>Today</span>
+          <button type="button" class="ghost" id="clear-today" title="Close all of today's tabs">clear</button>
+        </div>
+        <div class="today-tabs" id="today-tabs"></div>
+      </div>
+      <div class="side-foot">
+        <button type="button" class="ghost" id="new-tab-btn" title="New tab (⌘T)">+ New tab</button>
+        <button type="button" class="ghost icon" id="theme-btn" title="Whiteboard / chalkboard (⌘⇧D)" aria-label="Switch theme">◐</button>
+      </div>
+      <div class="marker" id="marker" aria-hidden="true"></div>
+    </aside>
+
+    <main class="stage">
+      <div class="toolbar">
+        <button type="button" class="tb" id="sidebar-btn" title="Toggle sidebar (⌘\)" aria-label="Toggle sidebar">☰</button>
+        <button type="button" class="tb" id="back" title="Back (⌘[)" aria-label="Back">‹</button>
+        <button type="button" class="tb" id="fwd" title="Forward (⌘])" aria-label="Forward">›</button>
+        <button type="button" class="tb" id="reload" title="Reload (⌘R)" aria-label="Reload">↻</button>
+        <form class="omni" id="omni-form" autocomplete="off">
+          <span class="omni-lock" id="omni-lock" aria-hidden="true"></span>
+          <input id="omni" type="text" placeholder="Search or enter address" aria-label="Address" spellcheck="false">
+          <span class="omni-loading" id="omni-loading" hidden></span>
+        </form>
+        <button type="button" class="tb" id="external" title="Open in default browser (⌘⇧O)" aria-label="Open in default browser">↗</button>
+      </div>
+      <div class="views" id="views">
+        <div class="newtab" id="newtab" hidden>
+          <div class="newtab-inner">
+            <h1>Where to?</h1>
+            <p>Type an address above, or pick a place.</p>
+            <div class="quick" id="quick"></div>
+          </div>
+        </div>
+        <div class="notapp" id="notapp" hidden>
+          <div class="newtab-inner">
+            <h1>Open this in the Season app</h1>
+            <p>Browsers block most sites from loading inside another page. Run <code>npm run app</code> in <code>~/Developer/season</code> to use real tabs.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="palette" id="palette" hidden>
+    <div class="palette-box" role="dialog" aria-modal="true" aria-label="Jump anywhere">
+      <input id="palette-input" type="text" placeholder="Jump to a tab, course, deadline, project, or address…" aria-label="Search" autocomplete="off" spellcheck="false">
+      <ul id="palette-list" role="listbox"></ul>
+      <div class="palette-hint"><kbd>↑↓</kbd> move <kbd>↵</kbd> open <kbd>esc</kbd> close</div>
+    </div>
+  </div>
+
+  <div class="ctx" id="ctx" hidden></div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="/shell.js"></script>
+</body>
+</html>

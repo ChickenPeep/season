@@ -193,6 +193,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         semester: cfg.semester,
         pins: cfg.pins,
+        shell: cfg.shell || null,
         canvas: { configured: creds.configured, host: creds.url ? new URL(creds.url).host : null, envFile: cfg.canvas.envFile, mock: MOCK },
         home: os.homedir(),
         apps: installedApps(),
@@ -221,6 +222,11 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') console.error(`Port ${PORT} is already in use. Season may already be running at http://localhost:${PORT}`);
+  else console.error(err);
+  process.exit(1);
+});
 server.listen(PORT, HOST, () => {
   const creds = canvasCredentials(cfg);
   const addr = `http://localhost:${PORT}`;

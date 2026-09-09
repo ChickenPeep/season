@@ -273,10 +273,11 @@ function tabHtml(tab, { inFolder }) {
   const rt = S.runtime.get(tab.id);
   const active = tab.id === S.shell.activeId;
   const title = inFolder ? tab.title : rt?.title || tab.title;
-  const sub = inFolder ? (tab.sub ? tab.sub : hostOf(tab.url)) : '';
+  const sub = inFolder && !tab.auto ? hostOf(tab.url) : ''; // course tabs keep their full name in the tooltip, not inline
   const cls = ['tab', active ? 'active' : '', rt?.loading ? 'loading' : '', inFolder && !rt?.view ? 'sleeping' : '', tab.fresh ? 'enter' : ''].join(' ');
   delete tab.fresh;
-  return `<div class="${cls}" data-id="${esc(tab.id)}" draggable="${tab.auto ? 'false' : 'true'}" title="${esc(rt?.url || tab.url || 'New tab')}" role="button" tabindex="0">
+  const tip = tab.sub ? `${tab.sub} · ${rt?.url || tab.url}` : rt?.url || tab.url || 'New tab';
+  return `<div class="${cls}" data-id="${esc(tab.id)}" draggable="${tab.auto ? 'false' : 'true'}" title="${esc(tip)}" role="button" tabindex="0">
     ${favHtml(tab)}
     <span class="title">${esc(title)}</span>
     ${sub && !active ? '' : sub ? `<span class="sub">${esc(sub.length > 22 ? sub.slice(0, 20) + '…' : sub)}</span>` : ''}

@@ -1,6 +1,7 @@
 /* Season desktop shell: a window that owns real browser tabs, with the board served by the local server. */
-import { app, BrowserWindow, Menu, session, shell, ipcMain, nativeTheme } from 'electron';
+import { app, BrowserWindow, Menu, session, shell, ipcMain, nativeTheme, safeStorage, dialog } from 'electron';
 import { Terminals } from './terminal.mjs';
+import { saveSessionCookies, restoreSessionCookies, clearSavedSessions } from './sessions.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -54,6 +55,23 @@ function buildMenu() {
         key('Reopen closed tab', 'CmdOrCtrl+Shift+T', { id: 'reopen-tab' }),
         { type: 'separator' },
         key('Open in default browser', 'CmdOrCtrl+Shift+O', { id: 'open-external' }),
+        { type: 'separator' },
+        {
+          label: 'Sign out of all sites…',
+          click: async () => {
+            const { response } = await dialog.showMessageBox(win, {
+              type: 'warning',
+              buttons: ['Sign out', 'Cancel'],
+              defaultId: 1,
+              cancelId: 1,
+              message: 'Sign out of every site in Season?',
+              detail: 'Clears the saved sign-ins for every tab, including Canvas. Other browsers are not affected.',
+            });
+            if (response !== 0) return;
+            await clearSavedSessions({ app, session, partition: PARTITION });
+            send('shortcut', 'reload');
+          },
+        },
         { type: 'separator' },
         { role: 'close' },
       ],
@@ -177,17 +195,43 @@ ipcMain.handle('theme', (_e, mode) => {
   nativeTheme.themeSource = mode === 'dark' || mode === 'light' ? mode : 'system';
 });
 
+const sessionArgs = () => ({ app, safeStorage, session, partition: PARTITION });
+
+let saving = null;
+async function persistSignIns(reason) {
+  if (saving) return saving;
+  saving = saveSessionCookies(sessionArgs())
+    .then((r) => { if (r.saved) console.log(`[sessions] kept ${r.saved} sign-in cookies (${reason})`); return r; })
+    .catch((err) => console.error('[sessions]', err.message))
+    .finally(() => { saving = null; });
+  return saving;
+}
+
 app.whenReady().then(async () => {
   hardenSessions();
   buildMenu();
+  const restored = await restoreSessionCookies(sessionArgs()).catch((err) => ({ restored: 0, reason: err.message }));
+  if (restored.restored) console.log(`[sessions] restored ${restored.restored} sign-in cookies`);
+  else if (restored.reason) console.log(`[sessions] starting signed out (${restored.reason})`);
   await startServer();
   await createWindow();
+  setInterval(() => persistSignIns('periodic'), 5 * 60000);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
-app.on('before-quit', () => terminals.killAll());
+let quitting = false;
+app.on('before-quit', async (e) => {
+  terminals.killAll();
+  if (quitting || !safeStorage.isEncryptionAvailable()) return;
+  // Cookies have to be read before the session goes away, so hold the quit briefly.
+  e.preventDefault();
+  quitting = true;
+  // Quitting must never hang on this; a lost sign-in is a nuisance, a stuck app is worse.
+  await Promise.race([persistSignIns('quit'), new Promise((r) => setTimeout(r, 3000))]);
+  app.quit();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

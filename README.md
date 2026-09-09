@@ -43,6 +43,10 @@ current Canvas course on its own. Bump `shell.version` in the config to reseed t
 - `⌘T` new tab, `⌘W` close, `⌘L` address bar, `⌘K` jump anywhere, `⌘\` hide the sidebar,
   `⌘⇧H` back to the board, `⌘1…9` switch tabs, `⌘⇧O` open the page in your default browser.
 - A page that opens a new window (a Canvas external tool, a sign-in popup) becomes a tab.
+- **You stay signed in.** Canvas and campus SSO hand out cookies that a browser is
+  meant to forget on quit, which meant signing in on every launch. Season holds those
+  over a restart, encrypted with the macOS keychain, and expires them after 30 days.
+  File → *Sign out of all sites…* clears them.
 - **Terminal** sits at the top of the sidebar. It is a real shell, not a command box:
   editors, pagers and anything that draws a full screen work, colours work, and it
   resizes with the window. `⌘⌥T` opens another; each one is listed under Terminal.
